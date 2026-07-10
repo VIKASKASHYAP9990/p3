@@ -2,36 +2,60 @@ import time
 import os
 import streamlit as st
 
-# Patch for PyArrow / Narwhals Wasm compatibility
+# ── PyArrow / Narwhals Wasm compatibility patch ──────────────────────────────
+# In Pyodide (stlite), `import pyarrow.compute as pc` inside pandas fails
+# with "'pyarrow' is not a package" when the pyarrow stub lacks __path__.
+# Python requires __path__ to be present on a module for submodule imports to
+# work, even if sys.modules["pyarrow.compute"] is already set.
 import sys
 import types
+
+def _make_pkg(name):
+    """Create a minimal stub module that Python treats as a package."""
+    mod = types.ModuleType(name)
+    mod.__package__ = name
+    mod.__path__ = []        # ← makes Python recognise this as a package
+    mod.__spec__ = None
+    return mod
+
 try:
+    # --- Ensure pyarrow is registered as a package --------------------------
     if "pyarrow" not in sys.modules:
-        pa = types.ModuleType("pyarrow")
-        class DummyTable: pass
-        class DummyChunkedArray: pass
-        pa.Table = DummyTable
-        pa.ChunkedArray = DummyChunkedArray
-        pa.__version__ = "14.0.0"
-        # Create dummy compute submodule
-        pa.compute = types.ModuleType("pyarrow.compute")
-        sys.modules["pyarrow"] = pa
-        sys.modules["pyarrow.compute"] = pa.compute
+        pa = _make_pkg("pyarrow")
     else:
         pa = sys.modules["pyarrow"]
-        if not hasattr(pa, "Table"):
-            class DummyTable: pass
-            pa.Table = DummyTable
-        if not hasattr(pa, "ChunkedArray"):
-            class DummyChunkedArray: pass
-            pa.ChunkedArray = DummyChunkedArray
-        if not hasattr(pa, "__version__"):
-            pa.__version__ = "14.0.0"
-        if not hasattr(pa, "compute"):
-            pa.compute = types.ModuleType("pyarrow.compute")
-            sys.modules["pyarrow.compute"] = pa.compute
+        # Even if it exists, it may lack __path__ (not a package stub)
+        if not hasattr(pa, "__path__"):
+            pa.__path__ = []
+        if not hasattr(pa, "__package__"):
+            pa.__package__ = "pyarrow"
+
+    # Required attributes used by plotly / narwhals
+    if not hasattr(pa, "__version__"):
+        pa.__version__ = "14.0.0"
+    if not hasattr(pa, "Table"):
+        class _DummyTable: pass
+        pa.Table = _DummyTable
+    if not hasattr(pa, "ChunkedArray"):
+        class _DummyChunkedArray: pass
+        pa.ChunkedArray = _DummyChunkedArray
+
+    # --- Register pyarrow and its submodules --------------------------------
+    sys.modules["pyarrow"] = pa
+
+    for _sub in ["pyarrow.compute", "pyarrow.lib", "pyarrow.types",
+                 "pyarrow.array", "pyarrow.ipc", "pyarrow.fs"]:
+        if _sub not in sys.modules:
+            _m = _make_pkg(_sub)
+            setattr(pa, _sub.split(".", 1)[1], _m)
+            sys.modules[_sub] = _m
+
+    if not hasattr(pa, "compute"):
+        pa.compute = sys.modules["pyarrow.compute"]
+
 except Exception:
     pass
+# ─────────────────────────────────────────────────────────────────────────────
 
 import pandas as pd
 import plotly.express as px
