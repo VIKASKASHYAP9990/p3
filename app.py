@@ -4,8 +4,16 @@ import streamlit as st
 
 # Patch for PyArrow / Narwhals Wasm compatibility
 import sys
+import types
 try:
-    if "pyarrow" in sys.modules:
+    if "pyarrow" not in sys.modules:
+        pa = types.ModuleType("pyarrow")
+        class DummyTable: pass
+        class DummyChunkedArray: pass
+        pa.Table = DummyTable
+        pa.ChunkedArray = DummyChunkedArray
+        sys.modules["pyarrow"] = pa
+    else:
         pa = sys.modules["pyarrow"]
         if not hasattr(pa, "Table"):
             class DummyTable: pass
