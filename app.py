@@ -65,8 +65,8 @@ st.markdown("""
     
     .glass-card:hover {
         transform: translateY(-3px);
-        border-color: rgba(255, 255, 255, 0.15);
-        box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5);
+        border-color: rgba(99, 102, 241, 0.35);
+        box-shadow: 0 12px 40px 0 rgba(99, 102, 241, 0.18);
     }
     
     .card-title {
@@ -126,6 +126,49 @@ st.markdown("""
     @keyframes pulse-red {
         0%, 100% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.15); }
         50% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.35); }
+    }
+
+    /* API Status indicators styling */
+    .status-container {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        background: rgba(17, 24, 39, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 12px;
+        padding: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+    .status-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.8rem;
+    }
+    .status-name {
+        color: #e5e7eb;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .status-badge {
+        font-size: 0.72rem;
+        padding: 2px 8px;
+        border-radius: 20px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+    }
+    .status-badge.live {
+        background: rgba(16, 185, 129, 0.15);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.35);
+    }
+    .status-badge.sim {
+        background: rgba(245, 158, 11, 0.15);
+        color: #fbbf24;
+        border: 1px solid rgba(245, 158, 11, 0.35);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -198,11 +241,59 @@ if st.sidebar.button("🔄 Trigger Manual Refresh"):
     st.sidebar.info("Manual refresh triggered.")
 
 # Clear Session
-if st.sidebar.button("🗑️ Clear Cache & History"):
-    st.session_state.history = []
-    st.session_state.alert_logs = []
-    st.sidebar.success("Cache cleared!")
-    st.rerun()
+col_clear, col_export = st.sidebar.columns(2)
+with col_clear:
+    if st.button("🗑️ Clear Cache"):
+        st.session_state.history = []
+        st.session_state.alert_logs = []
+        st.success("Cache cleared!")
+        st.rerun()
+
+with col_export:
+    if st.session_state.history:
+        rows = []
+        for snapshot in st.session_state.history:
+            ts = snapshot.get("timestamp_full")
+            for coin_id, details in snapshot.get("crypto", {}).items():
+                rows.append({
+                    "Timestamp": ts,
+                    "Category": "Crypto",
+                    "Asset_City": details.get("name"),
+                    "Symbol": details.get("symbol"),
+                    "Value": details.get("price"),
+                    "Change_24h_Pct": details.get("change_24h"),
+                    "Details": "N/A"
+                })
+            for symbol, details in snapshot.get("stock", {}).items():
+                rows.append({
+                    "Timestamp": ts,
+                    "Category": "Stock",
+                    "Asset_City": details.get("name"),
+                    "Symbol": symbol,
+                    "Value": details.get("price"),
+                    "Change_24h_Pct": details.get("change_24h"),
+                    "Details": f"Volume: {details.get('volume')}"
+                })
+            for city, details in snapshot.get("weather", {}).items():
+                rows.append({
+                    "Timestamp": ts,
+                    "Category": "Weather",
+                    "Asset_City": city,
+                    "Symbol": "N/A",
+                    "Value": details.get("temp"),
+                    "Change_24h_Pct": 0.0,
+                    "Details": f"Humidity: {details.get('humidity')}% | Wind: {details.get('wind')} m/s | Desc: {details.get('desc')}"
+                })
+        df_export = pd.DataFrame(rows)
+        csv_data = df_export.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 Export CSV",
+            data=csv_data,
+            file_name=f"telemetry_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            mime="text/csv"
+        )
+    else:
+        st.button("📥 Export CSV", disabled=True, help="Gather some data points first")
 
 # ----------------- Alert Rules Configuration Form -----------------
 st.sidebar.subheader("🚨 Configure Threshold Alerts")
@@ -320,27 +411,39 @@ with col_title:
 
 with col_status:
     # Display connection mode (API vs Simulation Fallback)
-    has_owm = len(st.session_state.owm_key) > 0
-    has_av = len(st.session_state.av_key) > 0
-    has_cg = not st.session_state.coingecko_disabled
+    api_status = current_data.get("status", {})
     
-    status_details = []
-    if has_cg: status_details.append("Crypto: API")
-    else: status_details.append("Crypto: Sim")
-    if has_av: status_details.append("Stock: API")
-    else: status_details.append("Stock: Sim")
-    if has_owm: status_details.append("Weather: API")
-    else: status_details.append("Weather: Sim")
+    crypto_src = api_status.get("crypto", {}).get("source", "simulation")
+    crypto_lat = api_status.get("crypto", {}).get("latency_ms", 0)
+    crypto_badge = f"LIVE ({crypto_lat}ms)" if "API" in crypto_src else "SIMULATION"
+    crypto_class = "live" if "API" in crypto_src else "sim"
+    
+    stock_src = api_status.get("stock", {}).get("source", "simulation")
+    stock_lat = api_status.get("stock", {}).get("latency_ms", 0)
+    stock_badge = f"LIVE ({stock_lat}ms)" if "API" in stock_src else "SIMULATION"
+    stock_class = "live" if "API" in stock_src else "sim"
+    
+    weather_src = api_status.get("weather", {}).get("source", "simulation")
+    weather_lat = api_status.get("weather", {}).get("latency_ms", 0)
+    weather_badge = f"LIVE ({weather_lat}ms)" if "API" in weather_src else "SIMULATION"
+    weather_class = "live" if "API" in weather_src else "sim"
     
     st.markdown(f"""
-    <div style='text-align: right; margin-top: 15px;'>
-        <div style='display: flex; align-items: center; justify-content: flex-end;'>
-            <span class='status-indicator'></span>
-            <strong style='font-size: 1rem;'>System Live</strong>
+    <div class="status-container">
+        <div class="status-row">
+            <span class="status-name">🪙 Crypto</span>
+            <span class="status-badge {crypto_class}">{crypto_badge}</span>
         </div>
-        <div style='color: #6b7280; font-size: 0.75rem; margin-top: 4px;'>
-            {', '.join(status_details)}<br>
-            Last update: {current_data['timestamp']}
+        <div class="status-row">
+            <span class="status-name">📈 Stocks</span>
+            <span class="status-badge {stock_class}">{stock_badge}</span>
+        </div>
+        <div class="status-row">
+            <span class="status-name">🌦️ Weather</span>
+            <span class="status-badge {weather_class}">{weather_badge}</span>
+        </div>
+        <div style="font-size: 0.72rem; color: #6b7280; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); margin-top: 4px; padding-top: 4px;">
+            Last: {current_data['timestamp']}
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -501,6 +604,24 @@ with tab_markets:
                 line=dict(color='#f59e0b', width=2, dash='dot')
             ))
             
+            # Overlay active alert thresholds
+            active_asset_alerts = [
+                a for a in st.session_state.alerts
+                if a.get("active", True)
+                and a["type"] == chart_asset_type.lower()
+                and a["key"] == selected_asset_key
+            ]
+            for alert in active_asset_alerts:
+                op_sym = alert["op"]
+                val = alert["val"]
+                fig.add_hline(
+                    y=val,
+                    line_dash="dash",
+                    line_color="#ef4444" if op_sym == "<" else "#10b981",
+                    annotation_text=f"Alert: {op_sym} ${val:.2f}",
+                    annotation_position="bottom right"
+                )
+            
             fig.update_layout(
                 title=f"{selected_asset_name} Price Trend & Moving Averages",
                 xaxis_title="Time",
@@ -646,6 +767,24 @@ with tab_weather:
                 fill='tozeroy',
                 fillcolor='rgba(239, 68, 68, 0.08)'
             ))
+            
+            # Overlay active alert thresholds
+            active_city_alerts = [
+                a for a in st.session_state.alerts
+                if a.get("active", True)
+                and a["type"] == "weather"
+                and a["key"] == selected_city
+            ]
+            for alert in active_city_alerts:
+                op_sym = alert["op"]
+                val = alert["val"]
+                fig_weather.add_hline(
+                    y=val,
+                    line_dash="dash",
+                    line_color="#ef4444" if op_sym == "<" else "#10b981",
+                    annotation_text=f"Alert: {op_sym} {val:.1f}{st.session_state.temp_unit}",
+                    annotation_position="bottom right"
+                )
             
             fig_weather.update_layout(
                 title=f"{selected_city} Temperature Log",
