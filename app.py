@@ -1,6 +1,21 @@
 import time
 import os
 import streamlit as st
+
+# Patch for PyArrow / Narwhals Wasm compatibility
+import sys
+try:
+    if "pyarrow" in sys.modules:
+        pa = sys.modules["pyarrow"]
+        if not hasattr(pa, "Table"):
+            class DummyTable: pass
+            pa.Table = DummyTable
+        if not hasattr(pa, "ChunkedArray"):
+            class DummyChunkedArray: pass
+            pa.ChunkedArray = DummyChunkedArray
+except Exception:
+    pass
+
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
