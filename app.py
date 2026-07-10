@@ -13,7 +13,10 @@ try:
         pa.Table = DummyTable
         pa.ChunkedArray = DummyChunkedArray
         pa.__version__ = "14.0.0"
+        # Create dummy compute submodule
+        pa.compute = types.ModuleType("pyarrow.compute")
         sys.modules["pyarrow"] = pa
+        sys.modules["pyarrow.compute"] = pa.compute
     else:
         pa = sys.modules["pyarrow"]
         if not hasattr(pa, "Table"):
@@ -24,6 +27,9 @@ try:
             pa.ChunkedArray = DummyChunkedArray
         if not hasattr(pa, "__version__"):
             pa.__version__ = "14.0.0"
+        if not hasattr(pa, "compute"):
+            pa.compute = types.ModuleType("pyarrow.compute")
+            sys.modules["pyarrow.compute"] = pa.compute
 except Exception:
     pass
 
