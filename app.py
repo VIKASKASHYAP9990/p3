@@ -2,7 +2,6 @@ import time
 import os
 import math
 import streamlit as st
-import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
 try:
@@ -691,21 +690,34 @@ with tab_markets:
         "Change %": [d["Change %"] for d in perf_data],
         "Type":     [d["Type"]     for d in perf_data],
     }
-    fig_bar = px.bar(
-        perf_dict,
-        x="Asset",
-        y="Change %",
-        color="Change %",
-        color_continuous_scale=px.colors.diverging.RdYlGn,
-        title="Asset 24h Return Percentage Comparison",
-        text_auto=".2f"
-    )
+    change_vals = perf_dict["Change %"]
+    # Colour each bar: red = negative, yellow = near-zero, green = positive
+    bar_colors = []
+    for v in change_vals:
+        if v >= 2:
+            bar_colors.append("#10b981")
+        elif v >= 0:
+            bar_colors.append("#34d399")
+        elif v >= -2:
+            bar_colors.append("#fbbf24")
+        else:
+            bar_colors.append("#ef4444")
+
+    fig_bar = go.Figure(data=[go.Bar(
+        x=perf_dict["Asset"],
+        y=change_vals,
+        marker_color=bar_colors,
+        text=[f"{v:+.2f}%" for v in change_vals],
+        textposition="auto",
+        hovertemplate="<b>%{x}</b><br>Change: %{y:.2f}%<extra></extra>",
+    )])
     fig_bar.update_layout(
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(color='#ffffff'),
+        title="Asset 24h Return Percentage Comparison",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="#ffffff"),
         xaxis=dict(showgrid=False),
-        yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)'),
+        yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)", zeroline=True, zerolinecolor="rgba(255,255,255,0.2)"),
         margin=dict(l=40, r=40, t=40, b=40)
     )
     

@@ -64,11 +64,11 @@
       async function main() {
         try {
           const [appPy, dataProviderPy] = await Promise.all([
-            fetch('app.py?v=5').then(res => {
+            fetch('app.py?v=6').then(res => {
               if (!res.ok) throw new Error('Failed to load app.py');
               return res.text();
             }),
-            fetch('data_provider.py?v=5').then(res => {
+            fetch('data_provider.py?v=6').then(res => {
               if (!res.ok) throw new Error('Failed to load data_provider.py');
               return res.text();
             })
