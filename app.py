@@ -5,13 +5,14 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 # Import our custom data provider
 import data_provider
-
-# Load environment variables (from .env file if available)
-load_dotenv()
 
 # ==========================================
 # Page Configuration
