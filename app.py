@@ -12,6 +12,7 @@ try:
         class DummyChunkedArray: pass
         pa.Table = DummyTable
         pa.ChunkedArray = DummyChunkedArray
+        pa.__version__ = "14.0.0"
         sys.modules["pyarrow"] = pa
     else:
         pa = sys.modules["pyarrow"]
@@ -21,6 +22,8 @@ try:
         if not hasattr(pa, "ChunkedArray"):
             class DummyChunkedArray: pass
             pa.ChunkedArray = DummyChunkedArray
+        if not hasattr(pa, "__version__"):
+            pa.__version__ = "14.0.0"
 except Exception:
     pass
 
