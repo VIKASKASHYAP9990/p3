@@ -901,13 +901,27 @@ with tab_alerts:
             st.rerun()
             
     if st.session_state.alert_logs:
-        df_logs = pd.DataFrame(st.session_state.alert_logs)
-        # Select and rename columns for display
-        df_display = df_logs[["time", "type", "item", "message"]].copy()
-        df_display.columns = ["Timestamp", "Category", "Target Item", "Details"]
-        
-        # Display as a table with custom height
-        st.dataframe(df_display, use_container_width=True, hide_index=True)
+        rows_html = ""
+        for log in st.session_state.alert_logs[:30]:
+            rows_html += (
+                f"<tr style='border-bottom:1px solid rgba(255,255,255,0.05);'>"
+                f"<td style='padding:8px 12px;color:#9ca3af;font-size:0.82rem;'>{log['time']}</td>"
+                f"<td style='padding:8px 12px;'><span style='background:rgba(99,102,241,0.15);color:#a5b4fc;"
+                f"padding:2px 8px;border-radius:12px;font-size:0.78rem;'>{log['type']}</span></td>"
+                f"<td style='padding:8px 12px;font-weight:600;'>{log['item']}</td>"
+                f"<td style='padding:8px 12px;font-size:0.82rem;color:#d1d5db;'>{log['message']}</td>"
+                f"</tr>"
+            )
+        st.markdown(
+            f"<table style='width:100%;border-collapse:collapse;color:#e5e7eb;'>"
+            f"<thead><tr style='border-bottom:1px solid rgba(255,255,255,0.15);'>"
+            f"<th style='text-align:left;padding:8px 12px;color:#9ca3af;font-size:0.78rem;text-transform:uppercase;'>Timestamp</th>"
+            f"<th style='text-align:left;padding:8px 12px;color:#9ca3af;font-size:0.78rem;text-transform:uppercase;'>Category</th>"
+            f"<th style='text-align:left;padding:8px 12px;color:#9ca3af;font-size:0.78rem;text-transform:uppercase;'>Target</th>"
+            f"<th style='text-align:left;padding:8px 12px;color:#9ca3af;font-size:0.78rem;text-transform:uppercase;'>Details</th>"
+            f"</tr></thead><tbody>{rows_html}</tbody></table>",
+            unsafe_allow_html=True
+        )
     else:
         st.info("No alerts have been triggered yet in this session.")
 
