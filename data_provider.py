@@ -1,7 +1,6 @@
 import time
 import random
 import requests
-import pandas as pd
 from datetime import datetime
 import json
 import math
@@ -503,17 +502,18 @@ def update_history(history_list, latest_data, max_len=30):
 
 def history_to_dataframe(history_list, asset_type, key):
     """
-    Converts list of historical updates into a pandas DataFrame suitable for plotting.
+    Converts list of historical updates into a dict-of-lists suitable for Plotly.
     asset_type: 'crypto', 'stock', or 'weather'
     key: e.g. 'bitcoin' or 'AAPL' or 'London'
+    Returns: {"Timestamp": [...], "Value": [...], "TimestampFull": [...]}
     """
-    data_points = []
+    timestamps, values, ts_full = [], [], []
     for item in history_list:
         if asset_type in item and key in item[asset_type]:
-            data_points.append({
-                "Timestamp": item["timestamp"],
-                "Value": item[asset_type][key]["price"] if asset_type != "weather" else item[asset_type][key]["temp"],
-                "TimestampFull": item["timestamp_full"]
-            })
-            
-    return pd.DataFrame(data_points)
+            timestamps.append(item["timestamp"])
+            val = (item[asset_type][key]["price"]
+                   if asset_type != "weather"
+                   else item[asset_type][key]["temp"])
+            values.append(val)
+            ts_full.append(item["timestamp_full"])
+    return {"Timestamp": timestamps, "Value": values, "TimestampFull": ts_full}

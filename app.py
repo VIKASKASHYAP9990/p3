@@ -1,63 +1,7 @@
 import time
 import os
+import math
 import streamlit as st
-
-# ── PyArrow / Narwhals Wasm compatibility patch ──────────────────────────────
-# In Pyodide (stlite), `import pyarrow.compute as pc` inside pandas fails
-# with "'pyarrow' is not a package" when the pyarrow stub lacks __path__.
-# Python requires __path__ to be present on a module for submodule imports to
-# work, even if sys.modules["pyarrow.compute"] is already set.
-import sys
-import types
-
-def _make_pkg(name):
-    """Create a minimal stub module that Python treats as a package."""
-    mod = types.ModuleType(name)
-    mod.__package__ = name
-    mod.__path__ = []        # ← makes Python recognise this as a package
-    mod.__spec__ = None
-    return mod
-
-try:
-    # --- Ensure pyarrow is registered as a package --------------------------
-    if "pyarrow" not in sys.modules:
-        pa = _make_pkg("pyarrow")
-    else:
-        pa = sys.modules["pyarrow"]
-        # Even if it exists, it may lack __path__ (not a package stub)
-        if not hasattr(pa, "__path__"):
-            pa.__path__ = []
-        if not hasattr(pa, "__package__"):
-            pa.__package__ = "pyarrow"
-
-    # Required attributes used by plotly / narwhals
-    if not hasattr(pa, "__version__"):
-        pa.__version__ = "14.0.0"
-    if not hasattr(pa, "Table"):
-        class _DummyTable: pass
-        pa.Table = _DummyTable
-    if not hasattr(pa, "ChunkedArray"):
-        class _DummyChunkedArray: pass
-        pa.ChunkedArray = _DummyChunkedArray
-
-    # --- Register pyarrow and its submodules --------------------------------
-    sys.modules["pyarrow"] = pa
-
-    for _sub in ["pyarrow.compute", "pyarrow.lib", "pyarrow.types",
-                 "pyarrow.array", "pyarrow.ipc", "pyarrow.fs"]:
-        if _sub not in sys.modules:
-            _m = _make_pkg(_sub)
-            setattr(pa, _sub.split(".", 1)[1], _m)
-            sys.modules[_sub] = _m
-
-    if not hasattr(pa, "compute"):
-        pa.compute = sys.modules["pyarrow.compute"]
-
-except Exception:
-    pass
-# ─────────────────────────────────────────────────────────────────────────────
-
-import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
@@ -69,6 +13,39 @@ except ImportError:
 
 # Import our custom data provider
 import data_provider
+
+# ── Pure-Python helpers (no pandas / pyarrow needed) ─────────────────────────
+def _rolling_mean(values, window):
+    """Rolling mean of a list of floats."""
+    result = []
+    for i in range(len(values)):
+        chunk = values[max(0, i - window + 1):i + 1]
+        result.append(sum(chunk) / len(chunk))
+    return result
+
+def _stdev(values):
+    """Sample standard deviation of a list of floats."""
+    n = len(values)
+    if n < 2:
+        return 0.0
+    mean = sum(values) / n
+    return math.sqrt(sum((x - mean) ** 2 for x in values) / (n - 1))
+
+def _make_csv(rows):
+    """Serialize a list of dicts to a CSV string."""
+    if not rows:
+        return ""
+    headers = list(rows[0].keys())
+    lines = [",".join(headers)]
+    for row in rows:
+        escaped = []
+        for h in headers:
+            val = str(row.get(h, "")).replace('"', '""')
+            escaped.append(f'"{val}"')
+        lines.append(",".join(escaped))
+    return "\n".join(lines)
+# ─────────────────────────────────────────────────────────────────────────────
+
 
 # ==========================================
 # Page Configuration
@@ -341,8 +318,7 @@ with col_export:
                     "Change_24h_Pct": 0.0,
                     "Details": f"Humidity: {details.get('humidity')}% | Wind: {details.get('wind')} m/s | Desc: {details.get('desc')}"
                 })
-        df_export = pd.DataFrame(rows)
-        csv_data = df_export.to_csv(index=False).encode('utf-8')
+        csv_data = _make_csv(rows).encode('utf-8')
         st.download_button(
             label="📥 Export CSV",
             data=csv_data,
@@ -607,34 +583,36 @@ with tab_markets:
         
     with col_chart_disp:
         # Build DataFrame for the selected asset
-        df_history = data_provider.history_to_dataframe(
+        hist = data_provider.history_to_dataframe(
             st.session_state.history, 
             chart_asset_type.lower(), 
             selected_asset_key
         )
+        h_values     = hist["Value"]
+        h_timestamps = hist["Timestamp"]
         
-        if not df_history.empty and len(df_history) >= 2:
-            # Calculate Moving Averages (on the fly processing)
-            df_history["SMA-5"] = df_history["Value"].rolling(window=5, min_periods=1).mean()
-            df_history["SMA-10"] = df_history["Value"].rolling(window=10, min_periods=1).mean()
+        if len(h_values) >= 2:
+            # Calculate Moving Averages using pure-Python helper
+            sma5  = _rolling_mean(h_values, 5)
+            sma10 = _rolling_mean(h_values, 10)
             
             # Show calculated parameters
-            high_val = df_history["Value"].max()
-            low_val = df_history["Value"].min()
-            volatility = df_history["Value"].std()
+            high_val   = max(h_values)
+            low_val    = min(h_values)
+            volatility = _stdev(h_values)
             
             cols_stats = st.columns(3)
             cols_stats[0].metric("Session High", data_provider.format_price(high_val))
             cols_stats[1].metric("Session Low", data_provider.format_price(low_val))
-            cols_stats[2].metric("Session Volatility (StDev)", f"{volatility:.4f}" if not pd.isna(volatility) else "0.00")
+            cols_stats[2].metric("Session Volatility (StDev)", f"{volatility:.4f}" if volatility else "0.00")
             
             # Create Plotly Chart
             fig = go.Figure()
             
             # Base Asset Line
             fig.add_trace(go.Scatter(
-                x=df_history["Timestamp"],
-                y=df_history["Value"],
+                x=h_timestamps,
+                y=h_values,
                 mode='lines+markers',
                 name=selected_asset_name,
                 line=dict(color='#6366f1', width=3),
@@ -645,8 +623,8 @@ with tab_markets:
             
             # SMA-5 Line
             fig.add_trace(go.Scatter(
-                x=df_history["Timestamp"],
-                y=df_history["SMA-5"],
+                x=h_timestamps,
+                y=sma5,
                 mode='lines',
                 name='SMA-5',
                 line=dict(color='#10b981', width=2, dash='dash')
@@ -654,8 +632,8 @@ with tab_markets:
             
             # SMA-10 Line
             fig.add_trace(go.Scatter(
-                x=df_history["Timestamp"],
-                y=df_history["SMA-10"],
+                x=h_timestamps,
+                y=sma10,
                 mode='lines',
                 name='SMA-10',
                 line=dict(color='#f59e0b', width=2, dash='dot')
@@ -708,10 +686,13 @@ with tab_markets:
     for symbol, details in current_data["stock"].items():
         perf_data.append({"Asset": symbol, "Change %": details["change_24h"], "Type": "Stock"})
         
-    df_perf = pd.DataFrame(perf_data)
-    
+    perf_dict = {
+        "Asset":    [d["Asset"]    for d in perf_data],
+        "Change %": [d["Change %"] for d in perf_data],
+        "Type":     [d["Type"]     for d in perf_data],
+    }
     fig_bar = px.bar(
-        df_perf,
+        perf_dict,
         x="Asset",
         y="Change %",
         color="Change %",
@@ -799,24 +780,26 @@ with tab_weather:
         
     with col_w_chart:
         # Build weather dataframe
-        df_weather = data_provider.history_to_dataframe(
+        w_hist = data_provider.history_to_dataframe(
             st.session_state.history,
             "weather",
             selected_city
         )
+        w_values     = w_hist["Value"]
+        w_timestamps = w_hist["Timestamp"]
         
-        if not df_weather.empty and len(df_weather) >= 2:
-            # Apply unit conversions to DataFrame if Fahrenheit is selected
+        if len(w_values) >= 2:
+            # Apply unit conversions if Fahrenheit is selected
             if st.session_state.temp_unit == "°F":
-                df_weather["Value"] = df_weather["Value"].apply(data_provider.convert_c_to_f)
-                y_label = "Temperature (°F)"
+                w_values = [data_provider.convert_c_to_f(v) for v in w_values]
+                y_label  = "Temperature (°F)"
             else:
-                y_label = "Temperature (°C)"
+                y_label  = "Temperature (°C)"
                 
             fig_weather = go.Figure()
             fig_weather.add_trace(go.Scatter(
-                x=df_weather["Timestamp"],
-                y=df_weather["Value"],
+                x=w_timestamps,
+                y=w_values,
                 mode='lines+markers',
                 name=selected_city,
                 line=dict(color='#ef4444', width=3),

@@ -64,11 +64,11 @@
       async function main() {
         try {
           const [appPy, dataProviderPy] = await Promise.all([
-            fetch('app.py').then(res => {
+            fetch('app.py?v=5').then(res => {
               if (!res.ok) throw new Error('Failed to load app.py');
               return res.text();
             }),
-            fetch('data_provider.py').then(res => {
+            fetch('data_provider.py?v=5').then(res => {
               if (!res.ok) throw new Error('Failed to load data_provider.py');
               return res.text();
             })
@@ -79,7 +79,7 @@
 
           stlite.mount(
             {
-              requirements: ["pandas", "plotly", "requests"],
+              requirements: ["plotly", "requests"],
               entrypoint: "app.py",
               files: {
                 "app.py": appPy,
