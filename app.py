@@ -216,7 +216,7 @@ if "alerts" not in st.session_state:
     st.session_state.alerts = [
         {"type": "crypto", "key": "bitcoin", "op": ">", "val": 60000.0, "active": True},
         {"type": "stock", "key": "AAPL", "op": ">", "val": 180.0, "active": True},
-        {"type": "weather", "key": "London", "op": ">", "val": 14.0, "active": True}
+        {"type": "weather", "key": "Mumbai", "op": ">", "val": 29.0, "active": True}
     ]
 if "alert_logs" not in st.session_state:
     st.session_state.alert_logs = []
@@ -729,50 +729,55 @@ with tab_markets:
 with tab_weather:
     st.subheader("🌦️ Global Meteorological Readings")
     
-    weather_cols = st.columns(5)
-    for i, (city, details) in enumerate(current_data["weather"].items()):
-        temp_c = details["temp"]
-        humidity = details["humidity"]
-        wind_speed = details["wind"]
-        desc = details["desc"]
-        
-        # Unit conversion
-        if st.session_state.temp_unit == "°F":
-            temp_display = data_provider.convert_c_to_f(temp_c)
-            temp_str = f"{temp_display:.1f}°F"
-        else:
-            temp_str = f"{temp_c:.1f}°C"
+    # Dynamic multi-row grid — 5 cards per row, supports any number of cities
+    weather_items = list(current_data["weather"].items())
+    cols_per_row = 5
+    for row_start in range(0, len(weather_items), cols_per_row):
+        row_items = weather_items[row_start:row_start + cols_per_row]
+        weather_cols = st.columns(len(row_items))
+        for j, (city, details) in enumerate(row_items):
+            temp_c = details["temp"]
+            humidity = details["humidity"]
+            wind_speed = details["wind"]
+            desc = details["desc"]
             
-        # Select Weather Icon based on description
-        icon = "☁️"
-        desc_l = desc.lower()
-        if "clear" in desc_l or "sunny" in desc_l:
-            icon = "☀️"
-        elif "cloud" in desc_l:
-            icon = "⛅" if "partly" in desc_l else "☁️"
-        elif "rain" in desc_l or "shower" in desc_l:
-            icon = "🌧️"
-        elif "wind" in desc_l:
-            icon = "💨"
-        elif "storm" in desc_l or "thunder" in desc_l:
-            icon = "⚡"
-            
-        with weather_cols[i]:
-            st.markdown(f"""
-            <div class="glass-card">
-                <div style="font-size: 2.2rem; float: right; margin-top: -5px;">{icon}</div>
-                <div class="card-title">{city}</div>
-                <div class="card-value">{temp_str}</div>
-                <div style="color: #cbd5e1; font-weight: 500; font-size: 0.95rem; margin-bottom: 6px;">{desc}</div>
-                <div style="color: #9ca3af; font-size: 0.8rem; display: flex; justify-content: space-between;">
-                    <span>💧 Hum: {humidity}%</span>
-                    <span>💨 Wind: {wind_speed:.1f} m/s</span>
+            # Unit conversion
+            if st.session_state.temp_unit == "°F":
+                temp_display = data_provider.convert_c_to_f(temp_c)
+                temp_str = f"{temp_display:.1f}°F"
+            else:
+                temp_str = f"{temp_c:.1f}°C"
+                
+            # Select Weather Icon based on description
+            icon = "☁️"
+            desc_l = desc.lower()
+            if "clear" in desc_l or "sunny" in desc_l:
+                icon = "☀️"
+            elif "cloud" in desc_l:
+                icon = "⛅" if "partly" in desc_l else "☁️"
+            elif "rain" in desc_l or "shower" in desc_l:
+                icon = "🌧️"
+            elif "wind" in desc_l:
+                icon = "💨"
+            elif "storm" in desc_l or "thunder" in desc_l:
+                icon = "⚡"
+                
+            with weather_cols[j]:
+                st.markdown(f"""
+                <div class="glass-card">
+                    <div style="font-size: 2.2rem; float: right; margin-top: -5px;">{icon}</div>
+                    <div class="card-title">{city}</div>
+                    <div class="card-value">{temp_str}</div>
+                    <div style="color: #cbd5e1; font-weight: 500; font-size: 0.95rem; margin-bottom: 6px;">{desc}</div>
+                    <div style="color: #9ca3af; font-size: 0.8rem; display: flex; justify-content: space-between;">
+                        <span>💧 Hum: {humidity}%</span>
+                        <span>💨 Wind: {wind_speed:.1f} m/s</span>
+                    </div>
+                    <div class="card-footer">
+                        Updated: {details['timestamp'].split(' ')[1]}
+                    </div>
                 </div>
-                <div class="card-footer">
-                    Updated: {details['timestamp'].split(' ')[1]}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
             
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("---")

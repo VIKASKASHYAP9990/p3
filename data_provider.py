@@ -23,20 +23,30 @@ BASE_CRYPTOS = {
 }
 
 BASE_WEATHER = {
-    "New York": {"temp": 22.5, "desc": "Partly Cloudy", "humidity": 60, "wind": 4.5},
-    "London": {"temp": 15.2, "desc": "Light Rain", "humidity": 82, "wind": 6.2},
-    "Tokyo": {"temp": 26.8, "desc": "Clear Sky", "humidity": 55, "wind": 2.1},
-    "Sydney": {"temp": 18.4, "desc": "Windy", "humidity": 68, "wind": 8.5},
-    "Paris": {"temp": 20.1, "desc": "Sunny", "humidity": 50, "wind": 3.8}
+    "Mumbai": {"temp": 30.0, "desc": "Partly Cloudy", "humidity": 72, "wind": 3.5},
+    "Delhi": {"temp": 35.0, "desc": "Sunny", "humidity": 45, "wind": 4.0},
+    "Bengaluru": {"temp": 25.0, "desc": "Clear Sky", "humidity": 55, "wind": 2.5},
+    "Chennai": {"temp": 32.0, "desc": "Partly Cloudy", "humidity": 78, "wind": 4.5},
+    "Kolkata": {"temp": 31.0, "desc": "Mostly Cloudy", "humidity": 80, "wind": 3.0},
+    "Hyderabad": {"temp": 28.0, "desc": "Clear Sky", "humidity": 50, "wind": 3.2},
+    "Pune": {"temp": 27.0, "desc": "Partly Cloudy", "humidity": 58, "wind": 2.8},
+    "Jaipur": {"temp": 38.0, "desc": "Sunny", "humidity": 30, "wind": 5.0},
+    "Ahmedabad": {"temp": 36.0, "desc": "Sunny", "humidity": 35, "wind": 4.2},
+    "Lucknow": {"temp": 33.0, "desc": "Partly Cloudy", "humidity": 55, "wind": 3.8},
 }
 
 # Coordinate mapping for keyless Open-Meteo API
 CITY_COORDINATES = {
-    "New York": {"lat": 40.7128, "lon": -74.0060},
-    "London": {"lat": 51.5074, "lon": -0.1278},
-    "Tokyo": {"lat": 35.6762, "lon": 139.6503},
-    "Sydney": {"lat": -33.8688, "lon": 151.2093},
-    "Paris": {"lat": 48.8566, "lon": 2.3522}
+    "Mumbai": {"lat": 19.0760, "lon": 72.8777},
+    "Delhi": {"lat": 28.6139, "lon": 77.2090},
+    "Bengaluru": {"lat": 12.9716, "lon": 77.5946},
+    "Chennai": {"lat": 13.0827, "lon": 80.2707},
+    "Kolkata": {"lat": 22.5726, "lon": 88.3639},
+    "Hyderabad": {"lat": 17.3850, "lon": 78.4867},
+    "Pune": {"lat": 18.5204, "lon": 73.8567},
+    "Jaipur": {"lat": 26.9124, "lon": 75.7873},
+    "Ahmedabad": {"lat": 23.0225, "lon": 72.5714},
+    "Lucknow": {"lat": 26.8467, "lon": 80.9462},
 }
 
 # WMO weather code mapping to human-readable weather descriptions
