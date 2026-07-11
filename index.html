@@ -10,7 +10,7 @@
     <title>Real-Time Data Analytics Dashboard</title>
     <link
       rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/@stlite/mountable@0.58.0/build/stlite.css"
+      href="https://cdn.jsdelivr.net/npm/@stlite/mountable@0.69.0/build/stlite.css"
     />
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
@@ -975,14 +975,13 @@ with tab_alerts:
         st.info("No alerts have been triggered yet in this session.")
 
 # ==========================================
-# Auto-Refresh Rerun Logic (at the very bottom)
+# Refresh Button (Wasm / stlite mode)
 # ==========================================
+# Note: In stlite (Pyodide/WebAssembly), time.sleep() blocks the browser
+# thread and st.rerun() in a tight loop prevents the kernel from ever
+# connecting. Data refreshes when the user clicks the button below.
 if st.session_state.auto_refresh:
-    # In stlite (Wasm), time.sleep() blocks the entire browser thread and
-    # prevents the UI from ever rendering. We use st.rerun() directly instead.
-    # The countdown label is kept for UX consistency.
-    st.sidebar.markdown("<p style='text-align: center; color: #888; font-size: 0.85rem;'>🔄 Auto-refresh enabled (Wasm mode)</p>", unsafe_allow_html=True)
-    st.rerun()
+    st.sidebar.markdown("<p style='text-align: center; color: #888; font-size: 0.85rem;'>ℹ️ Click 🔄 to refresh data</p>", unsafe_allow_html=True)
     </script>
 
     <script type="text/plain" id="dp-py">
@@ -1513,7 +1512,7 @@ def history_to_dataframe(history_list, asset_type, key):
     return {"Timestamp": timestamps, "Value": values, "TimestampFull": ts_full}
     </script>
 
-    <script src="https://cdn.jsdelivr.net/npm/@stlite/mountable@0.58.0/build/stlite.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@stlite/mountable@0.69.0/build/stlite.js"></script>
     <script>
       try {
         var appPy = document.getElementById("app-py").textContent;
