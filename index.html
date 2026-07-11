@@ -978,16 +978,23 @@ with tab_alerts:
 # Auto-Refresh Rerun Logic (at the very bottom)
 # ==========================================
 if st.session_state.auto_refresh:
-    # Small countdown visual indicator
-    st.sidebar.markdown(f"<p style='text-align: center; color: #888; font-size: 0.85rem;'>Refreshing page in {st.session_state.refresh_interval}s...</p>", unsafe_allow_html=True)
-    time.sleep(st.session_state.refresh_interval)
+    # In stlite (Wasm), time.sleep() blocks the entire browser thread and
+    # prevents the UI from ever rendering. We use st.rerun() directly instead.
+    # The countdown label is kept for UX consistency.
+    st.sidebar.markdown("<p style='text-align: center; color: #888; font-size: 0.85rem;'>🔄 Auto-refresh enabled (Wasm mode)</p>", unsafe_allow_html=True)
     st.rerun()
     </script>
 
     <script type="text/plain" id="dp-py">
 import time
 import random
-import requests
+# requests is not available in stlite/Pyodide (no sockets in Wasm)
+# All fetch functions will catch the ImportError and return None,
+# triggering the simulation fallback automatically.
+try:
+    import requests
+except ImportError:
+    requests = None
 from datetime import datetime
 import json
 import math
